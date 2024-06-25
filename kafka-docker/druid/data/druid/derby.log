@@ -1,0 +1,15 @@
+Tue Jun 25 12:36:07 UTC 2024 : Apache Derby Network Server - 10.14.2.0 - (1828579) started and ready to accept connections on port 1527
+----------------------------------------------------------------
+Tue Jun 25 12:36:08 UTC 2024:
+Booting Derby version The Apache Software Foundation - Apache Derby - 10.14.2.0 - (1828579): instance a816c00e-0190-4f65-74bf-00006fcff810 
+on database directory /opt/druid/var/druid/metadata.db with class loader sun.misc.Launcher$AppClassLoader@a09ee92 
+Loaded from file:/opt/druid/lib/derby-10.14.2.0.jar
+java.vendor=Oracle Corporation
+java.runtime.version=1.8.0_275-8u275-b01-1~deb9u1-b01
+user.dir=/opt/druid
+os.name=Linux
+os.arch=amd64
+os.version=5.15.133.1-microsoft-standard-WSL2
+derby.system.home=null
+derby.stream.error.file=var/druid/derby.log
+Database Class Loader started - derby.database.classpath=''

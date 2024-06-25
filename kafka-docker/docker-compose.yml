@@ -1,0 +1,343 @@
+# File: docker-compose.yml
+version: "3.8"
+
+services:
+  zookeeper:
+    image: "confluentinc/cp-zookeeper:7.3.0"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      ZOO_MY_ID: 1
+      ZOO_PORT: 2181
+    ports:
+      - "2181:2181"
+    # volumes:
+    #   - zookeeper-data:/var/lib/zookeeper
+
+  kafka:
+    image: "confluentinc/cp-kafka:7.3.0"
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_ZOOKEEPER_CONNECT: "zookeeper:2181"
+      KAFKA_ADVERTISED_LISTENERS: LISTENER_DOCKER_INTERNAL://kafka:19092,LISTENER_DOCKER_EXTERNAL://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: LISTENER_DOCKER_INTERNAL:PLAINTEXT,LISTENER_DOCKER_EXTERNAL:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: LISTENER_DOCKER_INTERNAL
+      KAFKA_DELETE_TOPIC_ENABLE: "true"
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_BROKER_ID: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+    ports:
+      - "9092:9092"
+    # volumes:
+    #   - kafka-data:/var/lib/kafka/data
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:master
+    ports:
+      - "8080:8080"
+    restart: always
+    depends_on:
+      - kafka
+      - zookeeper
+    environment:
+      - KAFKA_CLUSTERS_0_NAME=local
+      - KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS=kafka:19092
+      - KAFKA_CLUSTERS_0_ZOOKEEPER=zookeeper:2181
+    links:
+      - kafka
+
+  # druid:
+  #   image: apache/druid:24.0.0
+  #   container_name: druid
+  #   ports:
+  #     - "8888:8888"
+  #     - "8081:8081"
+  #     - "8082:8082"
+  #     - "8090:8090"
+  #     - "8091:8091"
+  #   environment:
+  #     DRUID_XMX: 4g
+  #     DRUID_XMS: 4g
+  #     DRUID_MAXDIRECTMEMORYSIZE: 2g
+  #   volumes:
+  #     # - ./druid/config:/opt/druid/conf/druid
+  #     - ./druid:/opt/druid/conf/druid
+  #     # - ./druid/cluster/misc/supervise:/opt/druid/conf/druid/misc/supervise
+  #     - ./druid/data:/opt/druid/var
+  #   command:
+  #     [
+  #       "supervise",
+  #       "-c",
+  #       "/opt/druid/conf/druid/_common/common.runtime.properties",
+  #       "-c",
+  #       "/opt/druid/conf/druid/misc/supervise/runtime.properties",
+  #       "-c",
+  #       "/opt/druid/conf/druid/_common/common.runtime.properties",
+  #       "-c",
+  #       "/opt/druid/conf/druid/misc/supervise/runtime.properties",
+  #       "-j",
+  #       "/opt/druid/conf/druid/misc/supervise/jvm.config",
+  #       "-s",
+  #       "coordinator,overlord,middleManager,historical,broker,router",
+  #     ]
+  #   depends_on:
+  #     - zookeeper
+
+  druid-coordinator:
+    image: apache/druid:24.0.0
+    container_name: druid-coordinator
+    ports:
+      - "8081:8081"
+    environment:
+      DRUID_XMX: 2g
+      DRUID_XMS: 2g
+    volumes:
+      - ./druid/cluster/misc/supervise:/opt/druid/conf/druid/misc/supervise
+      - ./druid/data:/opt/druid/var
+    command: "coordinator"
+    depends_on:
+      - zookeeper
+
+  # druid-coordinator:
+  #   image: apache/druid:24.0.0
+  #   container_name: druid-coordinator
+  #   ports:
+  #     - "8081:8081"
+  #   environment:
+  #     DRUID_XMX: 1g
+  #     DRUID_XMS: 1g
+  #     DRUID_MAX_DIRECT_MEMORY: 2g
+  #     DRUID_HOSTNAME: druid-coordinator
+  #     DRUID_MIDDLEMANAGER_ENABLED: "true"
+  #     DRUID_LOG4J2_SKIPJANSI: "true"
+  #     DRUID_ZK_SERVICE_HOST: zookeeper
+  #   volumes:
+  #     # - ./druid/config:/opt/druid/conf/druid
+  #     - ./druid:/opt/druid/conf/druid
+  #     - ./druid/data:/opt/druid/var
+  #   depends_on:
+  #     - zookeeper
+
+  # druid-overlord:
+  #   image: apache/druid:24.0.0
+  #   container_name: druid-overlord
+  #   ports:
+  #     - "8090:8090"
+  #   environment:
+  #     DRUID_XMX: 1g
+  #     DRUID_XMS: 1g
+  #     DRUID_MAX_DIRECT_MEMORY: 2g
+  #     DRUID_HOSTNAME: druid-overlord
+  #     DRUID_ZK_SERVICE_HOST: zookeeper
+  #   volumes:
+  #     # - ./druid/config:/opt/druid/conf/druid
+  #     - ./druid:/opt/druid/conf/druid
+  #     - ./druid/data:/opt/druid/var
+  #   depends_on:
+  #     - zookeeper
+
+  # druid-coordinator:
+  #   image: apache/druid:24.0.0
+  #   container_name: druid-coordinator
+  #   ports:
+  #     - "8081:8081"
+  #   volumes:
+  #     - ./druid/conf/druid/_common:/opt/druid/conf/druid/_common
+  #     - ./druid:/opt/druid/conf/druid
+  #     - ./druid/data:/opt/druid/var
+  #   environment:
+  #     DRUID_XMX: 1g
+  #     DRUID_XMS: 1g
+  #     DRUID_MAX_DIRECT_MEMORY: 2g
+  #   command: ["coordinator"]
+  #   entrypoint: ["/opt/druid/bin/run-druid"]
+  #   depends_on:
+  #     - zookeeper
+
+  druid-overlord:
+    image: apache/druid:24.0.0
+    container_name: druid-overlord
+    ports:
+      - "8090:8090"
+    volumes:
+      - ./druid/conf/druid/_common:/opt/druid/conf/druid/_common
+      - ./druid:/opt/druid/conf/druid
+      - ./druid/data:/opt/druid/var
+    environment:
+      DRUID_XMX: 1g
+      DRUID_XMS: 1g
+      DRUID_MAX_DIRECT_MEMORY: 2g
+    command: "overlord"
+    # entrypoint: ["/opt/druid/bin/run-druid"]
+    depends_on:
+      - zookeeper
+
+  druid-broker:
+    image: apache/druid:24.0.0
+    container_name: druid-broker
+    ports:
+      - "8082:8082"
+    volumes:
+      - ./druid/conf/druid/_common:/opt/druid/conf/druid/_common
+      - ./druid:/opt/druid/conf/druid
+      - ./druid/data:/opt/druid/var
+    environment:
+      DRUID_XMX: 1g
+      DRUID_XMS: 1g
+      DRUID_MAX_DIRECT_MEMORY: 2g
+    command: "broker"
+    # entrypoint: ["/opt/druid/bin/run-druid"]
+    depends_on:
+      - zookeeper
+
+  druid-historical:
+    image: apache/druid:24.0.0
+    container_name: druid-historical
+    ports:
+      - "8083:8083"
+    volumes:
+      - ./druid/conf/druid/_common:/opt/druid/conf/druid/_common
+      - ./druid:/opt/druid/conf/druid
+      - ./druid/data:/opt/druid/var
+    environment:
+      DRUID_XMX: 1g
+      DRUID_XMS: 1g
+      DRUID_MAX_DIRECT_MEMORY: 2g
+    command: "historical"
+    # entrypoint: ["/opt/druid/bin/run-druid"]
+    depends_on:
+      - zookeeper
+
+  druid-middlemanager:
+    image: apache/druid:24.0.0
+    container_name: druid-middlemanager
+    ports:
+      - "8091:8091"
+    volumes:
+      - ./druid/conf/druid/_common:/opt/druid/conf/druid/_common
+      - ./druid:/opt/druid/conf/druid
+      - ./druid/data:/opt/druid/var
+    environment:
+      DRUID_XMX: 1g
+      DRUID_XMS: 1g
+      DRUID_MAX_DIRECT_MEMORY: 2g
+    command: "middleManager"
+    # entrypoint: ["/opt/druid/bin/run-druid"]
+    depends_on:
+      - zookeeper
+  # druid-overlord:
+  #   image: apache/druid:24.0.0
+  #   container_name: druid-overlord
+  #   ports:
+  #     - "8090:8090"
+  #   environment:
+  #     DRUID_XMX: 2g
+  #     DRUID_XMS: 2g
+  #   volumes:
+  #     - ./druid/cluster/misc/supervise:/opt/druid/conf/druid/misc/supervise
+  #     - ./druid/data:/opt/druid/var
+  #   command: "overlord"
+  #   depends_on:
+  #     - zookeeper
+
+  # druid-middlemanager:
+  #   image: apache/druid:24.0.0
+  #   container_name: druid-middlemanager
+  #   ports:
+  #     - "8091:8091"
+  #   environment:
+  #     DRUID_XMX: 2g
+  #     DRUID_XMS: 2g
+  #   volumes:
+  #     - ./druid/cluster/misc/supervise:/opt/druid/conf/druid/misc/supervise
+  #     - ./druid/data:/opt/druid/var
+  #   command: "middleManager"
+  #   depends_on:
+  #     - zookeeper
+
+  # druid-historical:
+  #   image: apache/druid:24.0.0
+  #   container_name: druid-historical
+  #   ports:
+  #     - "8082:8082"
+  #   environment:
+  #     DRUID_XMX: 2g
+  #     DRUID_XMS: 2g
+  #   volumes:
+  #     - ./druid/cluster/misc/supervise:/opt/druid/conf/druid/misc/supervise
+  #     - ./druid/data:/opt/druid/var
+  #   command: "historical"
+  #   depends_on:
+  #     - zookeeper
+
+  # druid-broker:
+  #   image: apache/druid:24.0.0
+  #   container_name: druid-broker
+  #   ports:
+  #     - "8083:8083"
+  #   environment:
+  #     DRUID_XMX: 2g
+  #     DRUID_XMS: 2g
+  #   volumes:
+  #     - ./druid/cluster/misc/supervise:/opt/druid/conf/druid/misc/supervise
+  #     - ./druid/data:/opt/druid/var
+  #   command: "broker"
+  #   depends_on:
+  #     - zookeeper
+
+  # druid-router:
+  #   image: apache/druid:24.0.0
+  #   container_name: druid-router
+  #   ports:
+  #     - "8888:8888"
+  #   environment:
+  #     DRUID_XMX: 2g
+  #     DRUID_XMS: 2g
+  #   volumes:
+  #     - ./druid/cluster/misc/supervise:/opt/druid/conf/druid/misc/supervise
+  #     - ./druid/data:/opt/druid/var
+  #   command: "router"
+  #   depends_on:
+  #     - zookeeper
+
+  superset:
+    image: apache/superset:1.3.0
+    container_name: superset
+    ports:
+      - "8088:8088"
+    environment:
+      SUPERSET_LOAD_EXAMPLES: no
+      SUPERSET_DATABASE_URI: "sqlite:////var/lib/superset/superset.db"
+    depends_on:
+      - druid-coordinator
+      - druid-overlord
+      - druid-broker
+    volumes:
+      - ./superset:/var/lib/superset
+    entrypoint: "superset run -h 0.0.0.0 -p 8088"
+
+  postgres:
+    image: postgres:12
+    container_name: superset_db
+    environment:
+      POSTGRES_DB: superset
+      POSTGRES_USER: superset
+      POSTGRES_PASSWORD: superset
+    ports:
+      - "5432:5432"
+
+  # postgres:
+  #   image: postgres:15
+  #   environment:
+  #     POSTGRES_DB: nestjsdb
+  #     POSTGRES_USER: postgres
+  #     POSTGRES_PASSWORD: password
+  #   ports:
+  #     - "5432:5432"
+
+volumes:
+  data:
+    driver: local
